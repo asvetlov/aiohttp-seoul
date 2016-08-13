@@ -1,0 +1,547 @@
+<!doctype html>
+<html lang="en">
+
+    <head>
+        <meta charset="utf-8">
+
+        <title>Introduction to aiohttp</title>
+
+        <meta name="description" content="The intro describes basic programming patterns for both client">
+        <meta name="author" content="Andrew Svetlov">
+
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimal-ui">
+
+        <link rel="stylesheet" href="css/reveal.css">
+        <link rel="stylesheet" href="css/theme/white.css" id="theme">
+
+        <!-- For syntax highlighting -->
+        <link rel="stylesheet" href="lib/css/custom.css">
+
+        <!-- If the query includes 'print-pdf', use the PDF print sheet -->
+        <script>
+            document.write( '<link rel="stylesheet" href="css/print/' + ( window.location.search.match( /print-pdf/gi ) ? 'pdf' : 'paper' ) + '.css" type="text/css" media="print">' );
+        </script>
+
+        <!--[if lt IE 9]>
+        <script src="lib/js/html5shiv.js"></script>
+        <![endif]-->
+    </head>
+
+    <body>
+
+        <div class="reveal">
+
+            <!-- Any section element inside of this container is displayed as a slide -->
+            <div class="slides">
+              <section>
+                <h1>AIOHTTP Introduction</h1>
+                <h2>Andrew Svetlov</h2>
+                <p>andrew.svetlov@gmail.com</p>
+              </section>
+              <section>
+                <h2>Bio</h2>
+                <p>
+                  <ul>
+                    <li>Use Python for more than 16 years</li>
+                    <li>Python Core Developer since 2012</li>
+                    <li><i>asyncio</i> committer</li>
+                    <li><i>aiohttp</i> maintainer</li>
+                    <li>Author of a dozen libraries under <i>aio-libs</i> umbrella</li>
+                  </ul
+                </p>
+              </section>
+              <section>
+                <section>
+                  <h2>Why?</h2>
+                  <img src="microservices.svg" height="70%" width="70%"/>
+                  <br>
+                  <ul class="fragment">
+                    <li>1,000 OS native threads</li>
+                    <li>1,000,000 lightweight tasks</li>
+                  </ul>
+                </section>
+              </section>
+              <section>
+                <section>
+                  <h2>aiohttp -- asyncio-based web</h2>
+                  <p>
+                    <ul>
+                      <li>Client API</li>
+                      <li>Server</li>
+                      <li>Persistent connections</li>
+                      <li>Websockets</li>
+                    </ul>
+                  </p>
+                </section>
+                <section>
+                  <h2>3 years long history</h2>
+                  <p>
+                    <ul>
+                      <li>Extracted from asyncio (former tulip)</li>
+                      <li>22 releases so far</li>
+                      <li>3100+ commits</li>
+                      <li>~150 contributors</li>
+                      <li>98% code coverage</li>
+                    </ul>
+                  </p>
+                </section>
+              </section>
+              <section>
+                <section>
+                  <h1>Client API</h1>
+                </section>
+                <section>
+                  <h2>Requests</h2>
+                  <pre><code>
+import requests
+
+r = requests.get('https://api.github.com/user',
+                 auth=('user', 'pass'))
+print(r.status_code)
+print(r.text)
+                  </code></pre>
+                </section>
+                <section>
+                  <h2>aiohttp</h2>
+                  <h1 class="fragment">NO WAY!!!</h1>
+                  <h2 class="fragment">Bare functions are deprecated</h2>
+                </section>
+                <section>
+                  <h2>Requests with session</h2>
+                  <pre><code>
+session = requests.Session()
+
+r = session.get(url)
+print(r.status_code)
+print(r.headers['content-type'])
+print(r.text)
+                  </code></pre>
+                  <h3 class="fragment">Think about Keep-Alives</h3>
+                  <h4 class="fragment">and cookies</h4>
+                </section>
+                <section>
+                  <h2>aiohttp with session</h2>
+                  <pre><code>
+
+async def coro():
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as r:
+            print(r.status)
+            print(r.headers['content-type'])
+            print(await r.text())
+
+                  </code></pre>
+                </section>
+                <section>
+                  <h2>Rule of thumb for coroutines</h2>
+                  <p>
+                    <ol>
+                      <li class="fragment">Coroutine is an <b>async def</b> function</li>
+                      <li class="fragment">Call a coroutine with <b>await</b></li>
+                      <li class="fragment">If a function contains <b>awaits</b> -- make it coroutine</li>
+                    </ol>
+                  </p>
+                  <pre>
+                    <code>
+async def func():
+    await asyncio.sleep(1)
+
+async def other():
+    await func()
+                    </code>
+                  </pre>
+                </section>
+                <section>
+                  <h2>Multiple cuncurrent tasks</h2>
+                  <pre><code>
+
+async def fetch(session, url):
+    async with session.get(url) as r:
+        assert r.status == 200
+        return await r.text()
+
+tasks = [loop.create_task(fetch(session, url)
+    for url in ['http://google.com', 'http://python.org']]
+res = await asyncio.gather(*tasks)
+
+                  </code></pre>
+                </section>
+                <section>
+                  <table>
+                    <tr>
+                      <td>
+                        <figure>
+                          <img src="sync.png">
+                          <figcaption>Sync</figcaption>
+                        </figure>
+                      </td>
+                      <td>
+                        <figure class="fragment">
+                          <img src="real_threaded.png">
+                          <figcaption>Threaded</figcaption>
+                        </figure>
+                      </td>
+                      <td>
+                        <figure class="fragment">
+                          <img src="async.png">
+                          <figcaption>Async</figcaption>
+                        </figure>
+                      </td>
+                    </tr>
+                  </table>
+                </section>
+                <section>
+                  <h2>Timeouts</h2>
+                  <pre><code>
+async def coro(session):
+    with aiohttp.Timeout(1.5):
+        async with session.get(url) as r:
+            ...
+                  </code></pre>
+                </section>
+                <section>
+                  <h2>Websockets</h2>
+                  <pre>
+                    <code>
+async with client.ws_connect(
+        'http://websocket-server.org/endpoint') as ws:
+
+    async for msg in ws:
+        if msg.data == 'close':
+            await ws.close()
+            break
+        else:
+            ws.send_str("Answer on " + msg.data)
+                    </code>
+                  </pre>
+                </section>
+              </section>
+
+              <section>
+                <section>
+                  <h1>Server</h1>
+                </section>
+                <section>
+                  <h2>Django</h2>
+                  <pre>
+                    <code>
+from django.conf.urls import url
+from django.http import HttpResponse
+
+
+def index(request):
+    return HttpResponse("Hello, world")
+
+urlpatterns = [
+    url(r'^$', index),
+]
+                    </code>
+                  </pre>
+                </section>
+                <section>
+                  <h2>aiohttp</h2>
+                  <pre>
+                    <code>
+from aiohttp import web
+
+async def index(request):
+    return web.Response(text="Hello, world")
+
+app = web.Application(loop=loop)
+app.router.add_route('GET', '/', index)
+web.run_app(app)
+                    </code>
+                  </pre>
+                </section>
+                <section>
+                  <h2>Tornado</h2>
+                  <pre>
+                    <code>
+import tornado.ioloop
+import tornado.web
+
+class MainHandler(tornado.web.RequestHandler):
+    def get(self):
+        self.write("Hello, world")
+
+app = tornado.web.Application([
+    (r"/", MainHandler)])
+
+app.listen(8888)
+tornado.ioloop.IOLoop.current().start()
+                    </code>
+                  </pre>
+                </section>
+                <section>
+                  <h2>Serverside websockets</h2>
+                  <pre>
+                    <code>
+async def handler(request):
+    ws = web.WebSocketResponse()
+    await ws.prepare(request)
+
+    async for msg in ws:
+        if msg.data == 'close':
+            await ws.close()
+            break
+    else:
+        ws.send_str(msg.data + '/answer')
+
+    return ws
+                    </code>
+                  </pre>
+                </section>
+              </section>
+              <section>
+                <section>
+                  <h1>tips and tricks</h1>
+                </section>
+                <section>
+                  <h2>Development cycle</h2>
+                  <p>
+                    <ul>
+                      <li>Use single process for dev environment</li>
+                      <li>Make test run easy</li>
+                      <li>Deploy separately in different
+                        processes/containers/nodes</li>
+                    </ul>
+                  </p>
+                </section>
+                <section>
+                  <h2>Say NO to celery</h2>
+                  <pre>
+                    <code class="python">
+async def long_running_operation():
+    ...
+
+loop.create_task(long_running_operation())
+                    </code>
+                  </pre>
+                </section>
+                <section>
+                  <h2>Debug mode: problem</h2>
+                  <pre>
+                    <code>
+async def f():
+    fut = asyncio.Future()
+    fut.set_exception(RuntimeError())
+    del fut
+                    </code>
+                  </pre>
+                  <pre>
+                    <code>
+...
+ERROR:asyncio:Future exception was never retrieved
+future: Future finished exception=RuntimeError()
+RuntimeError
+                    </code>
+                  </pre>
+                </section>
+                <section>
+                  <h2>PYTHONASYNCIODEBUG=1</h2>
+                  <pre>
+                    <code class="bash">
+$ PYTHONASYNCIODEBUG=x python myapp.py
+                    </code>
+                  </pre>
+                  <pre>
+                    <code>
+ERROR:asyncio:Future exception was never retrieved
+future: Future finished exception=RuntimeError() created at filename.py:10
+source_traceback: Object created at (most recent call last):
+...
+File "filename.py", line 10, in f
+fut = asyncio.Future()
+RuntimeError
+                    </code>
+                  </pre>
+                </section>
+                <section>
+                  <h2>Explicit loop</h2>
+                  <pre>
+                    <code>
+async def fetch_all(urls, *, loop):
+    async with aiohttp.ClientSession(loop=loop):
+        ...
+
+loop = asyncio.get_event_loop()
+asyncio.set_event_loop(None)  # !!!
+await fetch_all(urls, loop=loop)
+                    </code>
+                  </pre>
+                </section>
+                <section>
+                  <h2>Utilize keep-alives</h2>
+                  <pre>
+                    <code>
+async def fetch_all(urls, *, loop):
+    tasks = []
+    async with aiohttp.ClientSession(loop=loop):
+        for url in urls:
+            tasks.append(loop.create_task(fetch(url), loop=loop))
+        await asyncio.wait(tasks, loop=loop)
+                    </code>
+                  </pre>
+                </section>
+                <section>
+                  <h2>Testing</h2>
+                  <pre>
+                    <code>
+class Test(unittest.TestCase):
+
+    def setUp(self):
+        self.loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(None)
+
+    def tearDown(self):
+        self.loop.close()
+
+    def test_func(self):
+        async def go():
+            self.assertEqual(1, await func(loop=self.loop))
+
+        self.loop.run_until_complete(go())
+                    </code>
+                  </pre>
+                </section>
+                <section>
+                  <h2>Testing with pytest-aiohttp</h2>
+                  <pre>
+                    <code>
+def create_app(loop, path, handler):
+    app = web.Application(loop=loop)
+    app.router.add_route('GET', path, handler)
+    return app
+
+async def test_hello(test_client):
+    async def hello(request):
+        return web.Response(body=b'Hello, world')
+    client = await test_client(create_app, '/', handler)
+
+    resp = await client.get('/')
+    assert resp.status == 200
+    text = await resp.text()
+    assert 'Hello, world' in text
+                    </code>
+                  </pre>
+                </section>
+                <section>
+                  <h2>No global objects!!!</h2>
+                  <pre><code>
+from motor.motor_asyncio import AsyncIOMotorClient
+DBNAME = 'testdb'
+db = AsyncIOMotorClient()[DBNAME]
+
+async def register(request):
+    post_data = await request.post()
+    login, password = post_data['login'], post_data['password']
+    matches = await db.users.find({'login': login}).count()
+    ...
+                  </code></pre>
+                </section>
+                <section>
+                  <h2>Application as a storage</h2>
+                  <pre><code>
+async def register(request):
+    post_data = await request.post()
+    login, password = post_data['login'], post_data['password']
+    matches = await request.app['db'].users.find({'login': login}).count()
+    ...
+                  </code></pre>
+                </section>
+                <section>
+                  <h2>DB init and shutdown</h2>
+                  <pre>
+                    <code>
+def make_app(loop=None):
+    app = web.Application(loop=loop)
+    mongo = AsyncIOMotorClient(io_loop=loop)
+    db = mongo['testdb']
+    app['db'] = db
+
+    async def cleanup(app):
+        mongo.close()
+
+    app.on_cleanup.append(cleanup)
+    ...
+    return app
+                    </code>
+                  </pre>
+                </section>
+              </section>
+              <section>
+                <section>
+                  <h1>Middlewares</h1>
+                </section>
+                <section>
+                  <h2>Request lifecicle and middlewares</h2>
+                  <img src="middleware.png"/>
+                </section>
+                <section>
+                  <h2>Server-side sessions</h2>
+                  <pre>
+                    <code>
+from aiohttp_session import get_session
+
+async def hander(request):
+    session = await get_session(request)
+    session['key'] = 'value'
+    return web.Response()
+                    </code>
+                  </pre>
+                </section>
+                <section>
+                  <h2>Debug Toolbar</h2>
+                  <img src="debugtoolbar.jpg"/>
+                </section>
+              </section>
+              <section>
+                <h1>Questions?</h1>
+                <br>
+                <h2>Andrew Svetlov</h2>
+                <p>andrew.svetlov@gmail.com</p>
+                <p>@andrew_svetlov</p>
+              </section>
+            </div>
+
+        </div>
+
+        <script src="lib/js/head.min.js"></script>
+        <script src="js/reveal.js"></script>
+
+        <script>
+
+            // Full list of configuration options available here:
+            // https://github.com/hakimel/reveal.js#configuration
+            Reveal.initialize({
+                controls: true,
+                progress: true,
+                history: true,
+                center: true,
+                slideNumber: false,
+
+                theme: Reveal.getQueryHash().theme, // available themes are in /css/theme
+                transition: Reveal.getQueryHash().transition || 'default', // default/cube/page/concave/zoom/linear/fade/none
+
+                // Parallax scrolling
+                // parallaxBackgroundImage: 'https://s3.amazonaws.com/hakim-static/reveal-js/reveal-parallax-1.jpg',
+                // parallaxBackgroundSize: '2100px 900px',
+
+                // Optional libraries used to extend on reveal.js
+                dependencies: [
+                    { src: 'lib/js/classList.js', condition: function() { return !document.body.classList; } },
+                    { src: 'plugin/markdown/marked.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+                    { src: 'plugin/markdown/markdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+                    { src: 'plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } },
+                    { src: 'plugin/zoom-js/zoom.js', async: true, condition: function() { return !!document.body.classList; } },
+                    { src: 'plugin/notes/notes.js', async: true, condition: function() { return !!document.body.classList; } }
+                ]
+            });
+
+        </script>
+
+    </body>
+</html>
