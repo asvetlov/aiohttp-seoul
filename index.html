@@ -378,11 +378,11 @@ await fetch_all(urls, loop=loop)
                   <pre>
                     <code>
 async def fetch_all(urls, *, loop):
-    tasks = []
+    coros = []
     async with aiohttp.ClientSession(loop=loop):
         for url in urls:
-            tasks.append(loop.create_task(fetch(url), loop=loop))
-        await asyncio.wait(tasks, loop=loop)
+            coros.append(fetch(url))
+        await asyncio.gather(*tasks, loop=loop)
                     </code>
                   </pre>
                 </section>
